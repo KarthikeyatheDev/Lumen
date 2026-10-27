@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GenAI Word Meaning App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .chat-container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            max-width: 650px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 85vh;
+            max-height: 750px;
+        }
+        .chat-header {
+            background-color: #4299e1; /* Blue */
+            color: white;
+            padding: 1.5rem;
+            font-size: 1.65rem;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 2px solid #3182ce;
+            border-radius: 12px 12px 0 0;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            background-color: #f7fafc;
+        }
+        .message-bubble {
+            padding: 1rem 1.25rem;
+            border-radius: 18px;
+            max-width: 85%;
+            word-wrap: break-word;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            line-height: 1.6;
+            font-size: 1rem;
+            white-space: pre-wrap; /* This helps preserve line breaks and spacing from plain text */
+        }
+        .user-message {
+            align-self: flex-end;
+            background-color: #a7d9ff;
+            color: #2c5282;
+            border-bottom-right-radius: 4px;
+        }
+        .ai-message {
+            align-self: flex-start;
+            background-color: #e2e8f0;
+            color: #2d3748;
+            border-bottom-left-radius: 4px;
+            line-height: 1.6;
+        }
+
+        .chat-input-area {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid #e2e8f0;
+            background-color: #ffffff;
+            border-radius: 0 0 12px 12px;
+        }
+        .chat-input {
+            flex-grow: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 20px;
+            outline: none;
+            font-size: 1rem;
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            background-color: #ffffff;
+            color: #2d3748;
+        }
+        .chat-input:focus {
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+        }
+        .send-button {
+            background-color: #4299e1;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 20px;
+            margin-left: 0.75rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
+            border: none;
+            box-shadow: 0 4px 10px rgba(66, 153, 225, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .send-button:hover {
+            background-color: #3182ce;
+            transform: translateY(-2px);
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 0;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .send-button:disabled {
+            background-color: #90cdf4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .chat-container {
+                height: 90vh;
+                max-height: unset;
+            }
+            .chat-header {
+                font-size: 1.4rem;
+                padding: 1.2rem;
+            }
+            .chat-messages {
+                padding: 1rem;
+                gap: 1rem;
+            }
+            .message-bubble {
+                padding: 0.8rem 1rem;
+                font-size: 0.9rem;
+            }
+            .chat-input-area {
+                padding: 0.75rem;
+            }
+            .chat-input {
+                font-size: 0.9rem;
+                padding: 0.6rem 0.9rem;
+            }
+            .send-button {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            Word Wizard Bot
+        </div>
+        <div id="chat-messages" class="chat-messages">
+            <div class="message-bubble ai-message">
+                Hello! Enter a word to get its detailed definition!
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="user-input" class="chat-input" placeholder="Type a word (e.g., 'ephemeral')...">
+            <button id="send-button" class="send-button">
+                Send
+                <span id="loading-spinner" class="loading-spinner ml-2 hidden"></span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        const BACKEND_URL = 'http://127.0.0.1:5000/chat';
+
+        function appendMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message-bubble');
+            if (sender === 'user') {
+                messageDiv.classList.add('user-message');
+            } else {
+                messageDiv.classList.add('ai-message');
+            }
+            // --- CRUCIAL CHANGE HERE: Use textContent for plain text ---
+            messageDiv.textContent = text;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === '') return;
+
+            appendMessage(message, 'user');
+            userInput.value = '';
+
+            sendButton.disabled = true;
+            loadingSpinner.classList.remove('hidden');
+
+            try {
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                appendMessage(data.response, 'ai');
+
+            } catch (error) {
+                console.error('Error sending message to backend:', error);
+                appendMessage("Oops! Something went wrong. Please try again later.", 'ai');
+            } finally {
+                sendButton.disabled = false;
+                loadingSpinner.classList.add('hidden');
+            }
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
